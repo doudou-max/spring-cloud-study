@@ -58,13 +58,11 @@ public class WebSocketServer {
         this.userId = userId;
         if (SOCKET_CONTAINER.containsKey(userId)) {
             SOCKET_CONTAINER.remove(userId);
-            SOCKET_CONTAINER.put(userId, this);
-            //加入set中
+            SOCKET_CONTAINER.put(userId, this);  //加入set中
         } else {
-            SOCKET_CONTAINER.put(userId, this);
-            //加入set中
-            addOnlineCount();
-            //在线数加1
+            SOCKET_CONTAINER.put(userId, this);  //加入set中
+            addOnlineCount();  //在线数加1
+
         }
 
         log.info("用户连接:" + userId + ",当前在线人数为:" + getOnlineCount());
@@ -84,8 +82,7 @@ public class WebSocketServer {
     public void onClose() {
         if (SOCKET_CONTAINER.containsKey(userId)) {
             SOCKET_CONTAINER.remove(userId);
-            //从set中删除
-            subOnlineCount();
+            subOnlineCount();   // 从set中删除
         }
         log.info("用户退出:" + userId + ",当前在线人数为:" + getOnlineCount());
     }
