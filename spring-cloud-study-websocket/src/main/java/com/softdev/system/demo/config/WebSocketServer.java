@@ -2,11 +2,7 @@ package com.softdev.system.demo.config;
 
 import java.io.IOException;
 import java.util.concurrent.ConcurrentHashMap;
-import javax.websocket.OnClose;
-import javax.websocket.OnError;
-import javax.websocket.OnMessage;
-import javax.websocket.OnOpen;
-import javax.websocket.Session;
+import javax.websocket.*;
 import javax.websocket.server.PathParam;
 import javax.websocket.server.ServerEndpoint;
 
@@ -140,6 +136,27 @@ public class WebSocketServer {
         this.session.getBasicRemote().sendText(message);
     }
 
+
+    /**
+     * 实现服务器主动推送
+     * try{} catch{}
+     */
+    public void sendMessage2(String message) {
+        try {
+            this.session.getBasicRemote().sendText(message);
+        } catch (IOException e) {
+            log.error(String.format("send error content:%s", message));
+            log.error(e);
+        }
+    }
+
+    /**
+     * 实现服务器主动推送
+     * obj 发送
+     */
+    public void sendObjMessage(Object object) throws IOException, EncodeException {
+        this.session.getBasicRemote().sendObject(object);
+    }
 
     /**
      * 发送自定义消息
