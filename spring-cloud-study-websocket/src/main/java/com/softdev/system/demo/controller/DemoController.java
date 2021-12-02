@@ -2,10 +2,7 @@ package com.softdev.system.demo.controller;
 
 import com.softdev.system.demo.config.WebSocketServer;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.ModelAndView;
 import java.io.IOException;
 
@@ -27,7 +24,7 @@ public class DemoController {
     }
 
     @RequestMapping("/push/{toUserId}")
-    public ResponseEntity<String> pushToWeb(String message, @PathVariable String toUserId) throws IOException {
+    public ResponseEntity<String> pushToWeb(@RequestParam String message, @PathVariable String toUserId) throws IOException {
         WebSocketServer.sendInfo(message,toUserId);
         return ResponseEntity.ok("MSG SEND SUCCESS");
     }
