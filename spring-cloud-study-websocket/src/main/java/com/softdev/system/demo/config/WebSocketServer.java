@@ -13,7 +13,6 @@ import javax.websocket.server.ServerEndpoint;
 import cn.hutool.core.util.StrUtil;
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
-//import org.apache.commons.lang.StringUtils;
 import org.springframework.stereotype.Component;
 import cn.hutool.log.Log;
 import cn.hutool.log.LogFactory;
@@ -24,23 +23,28 @@ import cn.hutool.log.LogFactory;
  *
  * @author zhengkai.blog.csdn.net
  */
-@ServerEndpoint("/imserver/{userId}")
+@ServerEndpoint("/imserver/{userId}")   // 每个页面端上来的时候，每个用户通过 userId 建立一个 websocket 连接客户端，然后通过 userId 作区分，发送给对应的客户端
 @Component
 public class WebSocketServer {
 
-    static Log log = LogFactory.get(WebSocketServer.class);
+    private static final Log log = LogFactory.get(WebSocketServer.class);
+
     /**
      * 静态变量，用来记录当前在线连接数。应该把它设计成线程安全的。
      */
     private static int onlineCount = 0;
+
     /**
      * concurrent包的线程安全Set，用来存放每个客户端对应的MyWebSocket对象。
+     * 单机版本使用 map，集群使用其他容器，参考 rrpc，本地 map 容器先判断有没有，本地没有通过 redis跨机器回调
      */
-    private static ConcurrentHashMap<String, WebSocketServer> webSocketMap = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<String, WebSocketServer> SOCKET_CONTAINER = new ConcurrentHashMap<>();
+
     /**
      * 与某个客户端的连接会话，需要通过它来给客户端发送数据
      */
     private Session session;
+
     /**
      * 接收userId
      */
@@ -48,17 +52,20 @@ public class WebSocketServer {
 
     /**
      * 连接建立成功调用的方法
+     * 页面端打开某个页面，点击开启 socket，然后就连接 socket 服务器，程序执行就到这里
+     * 项目的根路径 + @ServerEndpoint("/imserver/{userId}") -> http://localhost:9999/demo/imserver/{userId}
+     * 这个每个用户就建立了一个独立的 socket 连接
      */
     @OnOpen
     public void onOpen(Session session, @PathParam("userId") String userId) {
         this.session = session;
         this.userId = userId;
-        if (webSocketMap.containsKey(userId)) {
-            webSocketMap.remove(userId);
-            webSocketMap.put(userId, this);
+        if (SOCKET_CONTAINER.containsKey(userId)) {
+            SOCKET_CONTAINER.remove(userId);
+            SOCKET_CONTAINER.put(userId, this);
             //加入set中
         } else {
-            webSocketMap.put(userId, this);
+            SOCKET_CONTAINER.put(userId, this);
             //加入set中
             addOnlineCount();
             //在线数加1
@@ -67,7 +74,7 @@ public class WebSocketServer {
         log.info("用户连接:" + userId + ",当前在线人数为:" + getOnlineCount());
 
         try {
-            sendMessage("连接成功");
+            sendMessage("连接成功");   // 连接上来的时候，向 socket 发送提示 conn suc
         } catch (IOException e) {
             log.error("用户:" + userId + ",网络异常!!!!!!");
         }
@@ -75,11 +82,12 @@ public class WebSocketServer {
 
     /**
      * 连接关闭调用的方法
+     * 页面关闭程序就执行到这里
      */
     @OnClose
     public void onClose() {
-        if (webSocketMap.containsKey(userId)) {
-            webSocketMap.remove(userId);
+        if (SOCKET_CONTAINER.containsKey(userId)) {
+            SOCKET_CONTAINER.remove(userId);
             //从set中删除
             subOnlineCount();
         }
@@ -104,11 +112,10 @@ public class WebSocketServer {
                 jsonObject.put("fromUserId", this.userId);
                 String toUserId = jsonObject.getString("toUserId");
                 //传送给对应toUserId用户的websocket
-                if (StrUtil.isNotBlank(toUserId) && webSocketMap.containsKey(toUserId)) {
-                    webSocketMap.get(toUserId).sendMessage(jsonObject.toJSONString());
+                if (StrUtil.isNotBlank(toUserId) && SOCKET_CONTAINER.containsKey(toUserId)) {
+                    SOCKET_CONTAINER.get(toUserId).sendMessage(jsonObject.toJSONString());
                 } else {
-                    log.error("请求的userId:" + toUserId + "不在该服务器上");
-                    //否则不在这个服务器上，发送到mysql或者redis
+                    log.error("请求的userId:" + toUserId + "不在该服务器上");   //否则不在这个服务器上，发送到mysql或者redis
                 }
             } catch (Exception e) {
                 e.printStackTrace();
@@ -139,8 +146,8 @@ public class WebSocketServer {
      */
     public static void sendInfo(String message, @PathParam("userId") String userId) throws IOException {
         log.info("发送消息到:" + userId + "，报文:" + message);
-        if (StrUtil.isNotBlank(userId) && webSocketMap.containsKey(userId)) {
-            webSocketMap.get(userId).sendMessage(message);
+        if (StrUtil.isNotBlank(userId) && SOCKET_CONTAINER.containsKey(userId)) {
+            SOCKET_CONTAINER.get(userId).sendMessage(message);
         } else {
             log.error("用户" + userId + ",不在线！");
         }
